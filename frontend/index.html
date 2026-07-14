@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Manutenção PAM</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="app">
+        <div id="login-container" class="container">
+            <h1>Controle de Manutenção PAM</h1>
+            <form id="login-form">
+                <input type="email" id="email" placeholder="Email" required>
+                <input type="password" id="senha" placeholder="Senha" required>
+                <button type="submit">Login</button>
+            </form>
+            <p id="login-error" class="error"></p>
+        </div>
+
+        <div id="dashboard-container" class="container" style="display:none;">
+            <h1>Dashboard</h1>
+            <button id="logout-btn">Logout</button>
+            
+            <h2>Equipamentos</h2>
+            <button id="add-equipamento-btn">Adicionar Equipamento</button>
+            <div id="equipamentos-list"></div>
+
+            <h2>Manutenções</h2>
+            <button id="add-manutencao-btn">Adicionar Manutenção</button>
+            <div id="manutencoes-list"></div>
+
+            <h2>Alertas</h2>
+            <button id="gerar-alertas-btn">Gerar Alertas</button>
+            <div id="alertas-list"></div>
+        </div>
+    </div>
+
+    <script src="js/script.js"></script>
+</body>
+</html>
