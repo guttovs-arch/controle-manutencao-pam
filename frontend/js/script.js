@@ -202,9 +202,89 @@ document.getElementById('gerar-alertas-btn').addEventListener('click', async () 
 });
 
 document.getElementById('add-equipamento-btn').addEventListener('click', () => {
-    alert('Funcionalidade em desenvolvimento');
+    const nome = prompt('Nome do equipamento:');
+    if (!nome) return;
+    
+    const tipo = prompt('Tipo (ex: Bomba, Ventilador):');
+    if (!tipo) return;
+    
+    const localizacao = prompt('Localização:');
+    const quantidade = prompt('Quantidade em estoque:', '1');
+
+    criarEquipamento(nome, tipo, localizacao, parseInt(quantidade) || 1);
 });
 
 document.getElementById('add-manutencao-btn').addEventListener('click', () => {
-    alert('Funcionalidade em desenvolvimento');
+    const equipamento_id = prompt('ID do equipamento:');
+    if (!equipamento_id) return;
+    
+    const data = prompt('Data da manutenção (YYYY-MM-DD):');
+    if (!data) return;
+    
+    const tipo = prompt('Tipo (Preventiva/Corretiva):');
+    if (!tipo) return;
+    
+    const tecnico = prompt('Técnico responsável:');
+    const empresa = prompt('Empresa:');
+    const custo = prompt('Custo (R$):', '0');
+
+    criarManutencao(parseInt(equipamento_id), data, tipo, tecnico, empresa, parseFloat(custo) || 0);
 });
+
+async function criarEquipamento(nome, tipo, localizacao, quantidade) {
+    try {
+        const response = await fetch(`${API_URL}/equipamentos`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                nome,
+                tipo,
+                localizacao,
+                quantidade_estoque: quantidade
+            })
+        });
+
+        if (response.ok) {
+            alert('✅ Equipamento criado com sucesso!');
+            carregarEquipamentos();
+        } else {
+            alert('❌ Erro ao criar equipamento');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('❌ Erro ao criar equipamento');
+    }
+}
+
+async function criarManutencao(equipamento_id, data_manutencao, tipo, tecnico, empresa, custo) {
+    try {
+        const response = await fetch(`${API_URL}/manutencoes`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                equipamento_id,
+                data_manutencao,
+                tipo,
+                tecnico,
+                empresa,
+                custo
+            })
+        });
+
+        if (response.ok) {
+            alert('✅ Manutenção registrada com sucesso!');
+            carregarManutencoes();
+        } else {
+            alert('❌ Erro ao registrar manutenção');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('❌ Erro ao registrar manutenção');
+    }
+}
