@@ -177,12 +177,31 @@ def init_db():
         db.session.add(gerente)
     db.session.commit()
     return jsonify({'mensagem': 'Banco de dados inicializado'}), 200
-@app.route('/')
-def index():
-    return jsonify({'mensagem': 'API de Controle de Manutenção PAM', 'status': 'online'}), 200
+@app.route('/api/auth/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    email = data.get('email')
+    senha = data.get('senha')
+    usuario = Usuario.query.filter_by(email=email).first()
+    if not usuario or not usuario.check_password(senha):
+        return jsonify({'erro': 'Email ou senha inválidos'}), 401
+    if not usuario.ativo:
+        return jsonify({'erro': 'Usuário inativo'}), 401
+    access_token = create_access_token(identity=usuario.id)
+    return jsonify({'token': access_token, 'usuario': usuario.to_dict()}), 200
 
-@app.route('/health')
-def health():
-    return jsonify({'status': 'healthy'}), 200
+@app.route('/api/init-db', methods=['POST'])
+def init_db():
+    db.create_all()
+    if not Usuario.query.filter_by(email='coordenador@pam.com').first():
+        coordenador = Usuario(nome='Coordenador PAM', email='coordenador@pam.com', perfil='coordenador')
+        coordenador.set_password('senha123')
+        db.session.add(coordenador)
+    if not Usuario.query.filter_by(email='gerente@pam.com').first():
+        gerente = Usuario(nome='Gerente PAM', email='gerente@pam.com', perfil='gerente')
+        gerente.set_password('senha123')
+        db.session.add(gerente)
+    db.session.commit()
+    return jsonify({'mensagem': 'Banco de dados inicializado'}), 200
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
