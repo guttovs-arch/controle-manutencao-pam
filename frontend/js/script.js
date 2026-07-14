@@ -251,11 +251,12 @@ async function criarEquipamento(nome, tipo, localizacao, quantidade) {
             alert('✅ Equipamento criado com sucesso!');
             carregarEquipamentos();
         } else {
-            alert('❌ Erro ao criar equipamento');
+            const error = await response.json();
+            alert('❌ Erro: ' + (error.erro || 'Erro ao criar equipamento'));
         }
     } catch (error) {
         console.error('Erro:', error);
-        alert('❌ Erro ao criar equipamento');
+        alert('❌ Erro ao criar equipamento: ' + error.message);
     }
 }
 
@@ -281,10 +282,11 @@ async function criarManutencao(equipamento_id, data_manutencao, tipo, tecnico, e
             alert('✅ Manutenção registrada com sucesso!');
             carregarManutencoes();
         } else {
-            alert('❌ Erro ao registrar manutenção');
+            const error = await response.json();
+            alert('❌ Erro: ' + (error.erro || 'Erro ao registrar manutenção'));
         }
     } catch (error) {
         console.error('Erro:', error);
-        alert('❌ Erro ao registrar manutenção');
+        alert('❌ Erro ao registrar manutenção: ' + error.message);
     }
 }
