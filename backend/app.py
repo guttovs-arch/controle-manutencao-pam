@@ -181,6 +181,21 @@ def init_db():
         db.session.add(gerente)
     db.session.commit()
     return jsonify({'mensagem': 'Banco de dados inicializado'}), 200
+from flask import send_from_directory
+import os
 
+@app.route('/')
+def serve_frontend():
+    try:
+        return send_from_directory(os.path.join(os.path.dirname(__file__), '../frontend'), 'index.html')
+    except:
+        return jsonify({'mensagem': 'API de Controle de Manutenção PAM', 'status': 'online'}), 200
+
+@app.route('/<path:path>')
+def serve_static(path):
+    try:
+        return send_from_directory(os.path.join(os.path.dirname(__file__), '../frontend'), path)
+    except:
+        return jsonify({'erro': 'Arquivo não encontrado'}), 404
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
