@@ -79,6 +79,13 @@ async function carregarEquipamentos() {
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
+        if (response.status === 401) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('currentUser');
+            showLogin();
+            return;
+        }
+
         const equipamentos = await response.json();
         
         if (equipamentos.length === 0) {
@@ -106,6 +113,13 @@ async function carregarManutencoes() {
         const response = await fetch(`${API_URL}/manutencoes`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
+
+        if (response.status === 401) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('currentUser');
+            showLogin();
+            return;
+        }
 
         const manutencoes = await response.json();
         
@@ -136,6 +150,13 @@ async function carregarAlertas() {
         const response = await fetch(`${API_URL}/alertas`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
+
+        if (response.status === 401) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('currentUser');
+            showLogin();
+            return;
+        }
 
         const alertas = await response.json();
         
@@ -171,6 +192,8 @@ document.getElementById('gerar-alertas-btn').addEventListener('click', async () 
         if (response.ok) {
             carregarAlertas();
             alert('✅ Alertas gerados com sucesso!');
+        } else {
+            alert('❌ Erro ao gerar alertas');
         }
     } catch (error) {
         console.error('Erro ao gerar alertas:', error);
