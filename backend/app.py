@@ -177,6 +177,12 @@ def init_db():
         db.session.add(gerente)
     db.session.commit()
     return jsonify({'mensagem': 'Banco de dados inicializado'}), 200
+@app.route('/')
+def index():
+    return jsonify({'mensagem': 'API de Controle de Manutenção PAM', 'status': 'online'}), 200
 
+@app.route('/health')
+def health():
+    return jsonify({'status': 'healthy'}), 200
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
