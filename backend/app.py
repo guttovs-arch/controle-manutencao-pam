@@ -9,11 +9,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), '../frontend'), static_url_path='')
 CORS(app)
 
+app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'pam-controle-manutencao-chave-super-segura-2026-render-production')
+
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql://user:password@localhost/pam_db')
-app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'sua-chave-secreta-aqui')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=30)
 
 db = SQLAlchemy(app)
