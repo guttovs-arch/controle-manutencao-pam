@@ -1,23 +1,22 @@
 const API_URL = 'https://controle-manutencao-pam.onrender.com/api';
 let token = localStorage.getItem('token');
+let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
 
-// Elementos do DOM
 const loginContainer = document.getElementById('login-container');
 const dashboardContainer = document.getElementById('dashboard-container');
 const loginForm = document.getElementById('login-form');
 const logoutBtn = document.getElementById('logout-btn');
+const userName = document.getElementById('user-name');
 const equipamentosList = document.getElementById('equipamentos-list');
 const manutencoesList = document.getElementById('manutencoes-list');
 const alertasList = document.getElementById('alertas-list');
 
-// Verificar se já está logado
-if (token) {
+if (token && currentUser) {
     showDashboard();
 } else {
     showLogin();
 }
 
-// Login
 loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = document.getElementById('email').value;
@@ -34,39 +33,46 @@ loginForm.addEventListener('submit', async (e) => {
 
         if (response.ok) {
             token = data.token;
+            currentUser = data.usuario;
             localStorage.setItem('token', token);
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));
             showDashboard();
         } else {
-            document.getElementById('login-error').textContent = data.erro;
+            const errorDiv = document.getElementById('login-error');
+            errorDiv.textContent = data.erro || 'Erro ao fazer login';
+            errorDiv.classList.remove('d-none');
         }
     } catch (error) {
-        document.getElementById('login-error').textContent = 'Erro ao fazer login';
+        const errorDiv = document.getElementById('login-error');
+        errorDiv.textContent = 'Erro ao conectar com o servidor';
+        errorDiv.classList.remove('d-none');
     }
 });
 
-// Logout
 logoutBtn.addEventListener('click', () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('currentUser');
     token = null;
+    currentUser = null;
     showLogin();
 });
 
-// Mostrar login
 function showLogin() {
-    loginContainer.style.display = 'block';
-    dashboardContainer.style.display = 'none';
+    loginContainer.classList.remove('d-none');
+    dashboardContainer.classList.add('d-none');
 }
 
-// Mostrar dashboard
 function showDashboard() {
-    loginContainer.style.display = 'none';
-    dashboardContainer.style.display = 'block';
+    loginContainer.classList.add('d-none');
+    dashboardContainer.classList.remove('d-none');
+    if (currentUser) {
+        userName.textContent = currentUser.nome;
+    }
     carregarEquipamentos();
     carregarManutencoes();
     carregarAlertas();
 }
 
-// Carregar equipamentos
 async function carregarEquipamentos() {
     try {
         const response = await fetch(`${API_URL}/equipamentos`, {
@@ -74,20 +80,27 @@ async function carregarEquipamentos() {
         });
 
         const equipamentos = await response.json();
+        
+        if (equipamentos.length === 0) {
+            equipamentosList.innerHTML = '<div class="empty-state"><i class="bi bi-inbox"></i><p>Nenhum equipamento cadastrado</p></div>';
+            return;
+        }
+
         equipamentosList.innerHTML = equipamentos.map(eq => `
             <div class="equipamento-item">
-                <h3>${eq.nome}</h3>
+                <h5><i class="bi bi-cpu"></i> ${eq.nome}</h5>
                 <p><strong>Tipo:</strong> ${eq.tipo}</p>
-                <p><strong>Localização:</strong> ${eq.localizacao}</p>
-                <p><strong>Próxima Manutenção:</strong> ${eq.proxima_manutencao || 'Não agendada'}</p>
+                <p><strong>Localização:</strong> ${eq.localizacao || 'N/A'}</p>
+                <p><strong>Estoque:</strong> ${eq.quantidade_estoque} unidade(s)</p>
+                <p><strong>Próxima Manutenção:</strong> <span class="badge bg-info">${eq.proxima_manutencao || 'Não agendada'}</span></p>
             </div>
         `).join('');
     } catch (error) {
         console.error('Erro ao carregar equipamentos:', error);
+        equipamentosList.innerHTML = '<div class="alert alert-danger">Erro ao carregar equipamentos</div>';
     }
 }
 
-// Carregar manutenções
 async function carregarManutencoes() {
     try {
         const response = await fetch(`${API_URL}/manutencoes`, {
@@ -95,21 +108,29 @@ async function carregarManutencoes() {
         });
 
         const manutencoes = await response.json();
+        
+        if (manutencoes.length === 0) {
+            manutencoesList.innerHTML = '<div class="empty-state"><i class="bi bi-inbox"></i><p>Nenhuma manutenção registrada</p></div>';
+            return;
+        }
+
         manutencoesList.innerHTML = manutencoes.map(m => `
             <div class="manutencao-item">
-                <h3>Equipamento ID: ${m.equipamento_id}</h3>
-                <p><strong>Data:</strong> ${m.data_manutencao}</p>
-                <p><strong>Tipo:</strong> ${m.tipo}</p>
-                <p><strong>Técnico:</strong> ${m.tecnico}</p>
-                <p><strong>Custo:</strong> R$ ${m.custo || '0,00'}</p>
+                <h5><i class="bi bi-wrench"></i> Equipamento #${m.equipamento_id}</h5>
+                <p><strong>Data:</strong> ${new Date(m.data_manutencao).toLocaleDateString('pt-BR')}</p>
+                <p><strong>Tipo:</strong> <span class="badge bg-primary">${m.tipo}</span></p>
+                <p><strong>Técnico:</strong> ${m.tecnico || 'N/A'}</p>
+                <p><strong>Empresa:</strong> ${m.empresa || 'N/A'}</p>
+                <p><strong>Custo:</strong> R$ ${(m.custo || 0).toFixed(2)}</p>
+                <p><strong>Próxima Manutenção:</strong> ${m.proxima_data_prevista || 'Não agendada'}</p>
             </div>
         `).join('');
     } catch (error) {
         console.error('Erro ao carregar manutenções:', error);
+        manutencoesList.innerHTML = '<div class="alert alert-danger">Erro ao carregar manutenções</div>';
     }
 }
 
-// Carregar alertas
 async function carregarAlertas() {
     try {
         const response = await fetch(`${API_URL}/alertas`, {
@@ -117,20 +138,29 @@ async function carregarAlertas() {
         });
 
         const alertas = await response.json();
-        alertasList.innerHTML = alertas.map(a => `
-            <div class="alerta-item">
-                <h3>${a.tipo_alerta}</h3>
-                <p><strong>Equipamento ID:</strong> ${a.equipamento_id}</p>
-                <p><strong>Descrição:</strong> ${a.descricao}</p>
-                <p><strong>Data:</strong> ${new Date(a.data_alerta).toLocaleDateString('pt-BR')}</p>
-            </div>
-        `).join('');
+        
+        if (alertas.length === 0) {
+            alertasList.innerHTML = '<div class="empty-state"><i class="bi bi-check-circle"></i><p>Nenhum alerta ativo</p></div>';
+            return;
+        }
+
+        alertasList.innerHTML = alertas.map(a => {
+            const classe = a.tipo_alerta === 'manutencao_vencida' ? 'alerta-vencida' : '';
+            return `
+                <div class="alerta-item ${classe}">
+                    <h5><i class="bi bi-exclamation-triangle"></i> ${a.tipo_alerta.replace(/_/g, ' ').toUpperCase()}</h5>
+                    <p><strong>Equipamento ID:</strong> ${a.equipamento_id}</p>
+                    <p><strong>Descrição:</strong> ${a.descricao}</p>
+                    <p><strong>Data:</strong> ${new Date(a.data_alerta).toLocaleDateString('pt-BR')}</p>
+                </div>
+            `;
+        }).join('');
     } catch (error) {
         console.error('Erro ao carregar alertas:', error);
+        alertasList.innerHTML = '<div class="alert alert-danger">Erro ao carregar alertas</div>';
     }
 }
 
-// Gerar alertas
 document.getElementById('gerar-alertas-btn').addEventListener('click', async () => {
     try {
         const response = await fetch(`${API_URL}/alertas/gerar`, {
@@ -140,9 +170,18 @@ document.getElementById('gerar-alertas-btn').addEventListener('click', async () 
 
         if (response.ok) {
             carregarAlertas();
-            alert('Alertas gerados com sucesso!');
+            alert('✅ Alertas gerados com sucesso!');
         }
     } catch (error) {
         console.error('Erro ao gerar alertas:', error);
+        alert('❌ Erro ao gerar alertas');
     }
+});
+
+document.getElementById('add-equipamento-btn').addEventListener('click', () => {
+    alert('Funcionalidade em desenvolvimento');
+});
+
+document.getElementById('add-manutencao-btn').addEventListener('click', () => {
+    alert('Funcionalidade em desenvolvimento');
 });
