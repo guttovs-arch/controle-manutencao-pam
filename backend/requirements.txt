@@ -1,9 +1,9 @@
-Flask==3.0.0
+Flask==2.3.7
 Flask-CORS==4.0.0
 Flask-SQLAlchemy==3.1.1
 Flask-JWT-Extended==4.5.2
 python-dotenv==1.0.0
 psycopg2-binary==2.9.0
 gunicorn==23.0.0
-Werkzeug==3.0.0
+Werkzeug==2.3.7
 setuptools>=40.8.0
