@@ -152,6 +152,13 @@ def login():
 @app.route('/api/equipamentos', methods=['GET'])
 @jwt_required()
 def listar_equipamentos():
+    
+    try:
+        equipamentos = Equipamento.query.filter_by(ativo=True).all()
+        return jsonify([eq.to_dict() for eq in equipamentos]), 200
+    except Exception as e:
+        return jsonify({'erro': str(e)}), 500
+def listar_equipamentos():
     try:
         equipamentos = Equipamento.query.filter_by(ativo=True).all()
         return jsonify([eq.to_dict() for eq in equipamentos]), 200
