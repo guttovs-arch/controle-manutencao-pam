@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
@@ -19,6 +19,8 @@ app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=30)
 db = SQLAlchemy(app)
 jwt = JWTManager(app)
 
+# ============ MODELS ============
+
 class Usuario(db.Model):
     __tablename__ = 'usuarios'
     id = db.Column(db.Integer, primary_key=True)
@@ -36,7 +38,14 @@ class Usuario(db.Model):
         return check_password_hash(self.senha, password)
     
     def to_dict(self):
-        return {'id': self.id, 'nome': self.nome, 'email': self.email, 'perfil': self.perfil, 'ativo': self.ativo, 'data_criacao': self.data_criacao.isoformat()}
+        return {
+            'id': self.id,
+            'nome': self.nome,
+            'email': self.email,
+            'perfil': self.perfil,
+            'ativo': self.ativo,
+            'data_criacao': self.data_criacao.isoformat()
+        }
 
 class Equipamento(db.Model):
     __tablename__ = 'equipamentos'
@@ -55,7 +64,19 @@ class Equipamento(db.Model):
     manutencoes = db.relationship('Manutencao', backref='equipamento', lazy=True, cascade='all, delete-orphan')
     
     def to_dict(self):
-        return {'id': self.id, 'nome': self.nome, 'tipo': self.tipo, 'localizacao': self.localizacao, 'data_aquisicao': self.data_aquisicao.isoformat() if self.data_aquisicao else None, 'quantidade_estoque': self.quantidade_estoque, 'requer_calibracao': self.requer_calibracao, 'frequencia_preventiva': self.frequencia_preventiva, 'proxima_manutencao': self.proxima_manutencao.isoformat() if self.proxima_manutencao else None, 'ativo': self.ativo, 'data_criacao': self.data_criacao.isoformat()}
+        return {
+            'id': self.id,
+            'nome': self.nome,
+            'tipo': self.tipo,
+            'localizacao': self.localizacao,
+            'data_aquisicao': self.data_aquisicao.isoformat() if self.data_aquisicao else None,
+            'quantidade_estoque': self.quantidade_estoque,
+            'requer_calibracao': self.requer_calibracao,
+            'frequencia_preventiva': self.frequencia_preventiva,
+            'proxima_manutencao': self.proxima_manutencao.isoformat() if self.proxima_manutencao else None,
+            'ativo': self.ativo,
+            'data_criacao': self.data_criacao.isoformat()
+        }
 
 class Manutencao(db.Model):
     __tablename__ = 'manutencoes'
@@ -73,7 +94,20 @@ class Manutencao(db.Model):
     data_criacao = db.Column(db.DateTime, default=datetime.utcnow)
     
     def to_dict(self):
-        return {'id': self.id, 'equipamento_id': self.equipamento_id, 'data_manutencao': self.data_manutencao.isoformat(), 'tipo': self.tipo, 'tecnico': self.tecnico, 'empresa': self.empresa, 'custo': self.custo, 'pecas_substituidas': self.pecas_substituidas, 'proxima_data_prevista': self.proxima_data_prevista.isoformat() if self.proxima_data_prevista else None, 'observacoes': self.observacoes, 'registrado_por': self.registrado_por, 'data_criacao': self.data_criacao.isoformat()}
+        return {
+            'id': self.id,
+            'equipamento_id': self.equipamento_id,
+            'data_manutencao': self.data_manutencao.isoformat(),
+            'tipo': self.tipo,
+            'tecnico': self.tecnico,
+            'empresa': self.empresa,
+            'custo': self.custo,
+            'pecas_substituidas': self.pecas_substituidas,
+            'proxima_data_prevista': self.proxima_data_prevista.isoformat() if self.proxima_data_prevista else None,
+            'observacoes': self.observacoes,
+            'registrado_por': self.registrado_por,
+            'data_criacao': self.data_criacao.isoformat()
+        }
 
 class Alerta(db.Model):
     __tablename__ = 'alertas'
@@ -85,11 +119,16 @@ class Alerta(db.Model):
     resolvido = db.Column(db.Boolean, default=False)
     
     def to_dict(self):
-        return {'id': self.id, 'equipamento_id': self.equipamento_id, 'tipo_alerta': self.tipo_alerta, 'descricao': self.descricao, 'data_alerta': self.data_alerta.isoformat(), 'resolvido': self.resolvido}
+        return {
+            'id': self.id,
+            'equipamento_id': self.equipamento_id,
+            'tipo_alerta': self.tipo_alerta,
+            'descricao': self.descricao,
+            'data_alerta': self.data_alerta.isoformat(),
+            'resolvido': self.resolvido
+        }
 
-@app.route('/')
-def index():
-    return jsonify({'mensagem': 'API de Controle de Manutenção PAM', 'status': 'online'}), 200
+# ============ API ROUTES ============
 
 @app.route('/api/auth/login', methods=['POST'])
 def login():
@@ -115,7 +154,15 @@ def listar_equipamentos():
 def criar_equipamento():
     usuario_id = get_jwt_identity()
     data = request.get_json()
-    equipamento = Equipamento(nome=data.get('nome'), tipo=data.get('tipo'), localizacao=data.get('localizacao'), quantidade_estoque=data.get('quantidade_estoque', 1), requer_calibracao=data.get('requer_calibracao', False), frequencia_preventiva=data.get('frequencia_preventiva'), criado_por=usuario_id)
+    equipamento = Equipamento(
+        nome=data.get('nome'),
+        tipo=data.get('tipo'),
+        localizacao=data.get('localizacao'),
+        quantidade_estoque=data.get('quantidade_estoque', 1),
+        requer_calibracao=data.get('requer_calibracao', False),
+        frequencia_preventiva=data.get('frequencia_preventiva'),
+        criado_por=usuario_id
+    )
     db.session.add(equipamento)
     db.session.commit()
     return jsonify(equipamento.to_dict()), 201
@@ -131,7 +178,18 @@ def listar_manutencoes():
 def criar_manutencao():
     usuario_id = get_jwt_identity()
     data = request.get_json()
-    manutencao = Manutencao(equipamento_id=data.get('equipamento_id'), data_manutencao=datetime.strptime(data.get('data_manutencao'), '%Y-%m-%d').date(), tipo=data.get('tipo'), tecnico=data.get('tecnico'), empresa=data.get('empresa'), custo=data.get('custo'), pecas_substituidas=data.get('pecas_substituidas'), proxima_data_prevista=datetime.strptime(data.get('proxima_data_prevista'), '%Y-%m-%d').date() if data.get('proxima_data_prevista') else None, observacoes=data.get('observacoes'), registrado_por=usuario_id)
+    manutencao = Manutencao(
+        equipamento_id=data.get('equipamento_id'),
+        data_manutencao=datetime.strptime(data.get('data_manutencao'), '%Y-%m-%d').date(),
+        tipo=data.get('tipo'),
+        tecnico=data.get('tecnico'),
+        empresa=data.get('empresa'),
+        custo=data.get('custo'),
+        pecas_substituidas=data.get('pecas_substituidas'),
+        proxima_data_prevista=datetime.strptime(data.get('proxima_data_prevista'), '%Y-%m-%d').date() if data.get('proxima_data_prevista') else None,
+        observacoes=data.get('observacoes'),
+        registrado_por=usuario_id
+    )
     db.session.add(manutencao)
     equipamento = Equipamento.query.get(data.get('equipamento_id'))
     equipamento.proxima_manutencao = manutencao.proxima_data_prevista
@@ -154,15 +212,27 @@ def gerar_alertas():
     for eq in equipamentos:
         if eq.proxima_manutencao and eq.proxima_manutencao < hoje:
             dias_vencidos = (hoje - eq.proxima_manutencao).days
-            alerta = Alerta(equipamento_id=eq.id, tipo_alerta='manutencao_vencida', descricao=f'Vencida há {dias_vencidos} dias')
+            alerta = Alerta(
+                equipamento_id=eq.id,
+                tipo_alerta='manutencao_vencida',
+                descricao=f'Vencida há {dias_vencidos} dias'
+            )
             db.session.add(alerta)
         elif eq.proxima_manutencao and (eq.proxima_manutencao - hoje).days <= 7:
             dias_ate = (eq.proxima_manutencao - hoje).days
-            alerta = Alerta(equipamento_id=eq.id, tipo_alerta='proxima_manutencao', descricao=f'Vence em {dias_ate} dias')
+            alerta = Alerta(
+                equipamento_id=eq.id,
+                tipo_alerta='proxima_manutencao',
+                descricao=f'Vence em {dias_ate} dias'
+            )
             db.session.add(alerta)
         consumiveisRecompra = ['Máscara Laríngea', 'Bougie', 'Acesso Venoso Central', 'Dreno de Tórax']
         if eq.quantidade_estoque == 1 and eq.nome in consumiveisRecompra:
-            alerta = Alerta(equipamento_id=eq.id, tipo_alerta='estoque_baixo', descricao='Quantidade em estoque = 1. Recomprar!')
+            alerta = Alerta(
+                equipamento_id=eq.id,
+                tipo_alerta='estoque_baixo',
+                descricao='Quantidade em estoque = 1. Recomprar!'
+            )
             db.session.add(alerta)
     db.session.commit()
     alertas = Alerta.query.all()
@@ -181,8 +251,8 @@ def init_db():
         db.session.add(gerente)
     db.session.commit()
     return jsonify({'mensagem': 'Banco de dados inicializado'}), 200
-from flask import send_from_directory
-import os
+
+# ============ FRONTEND ROUTES ============
 
 @app.route('/')
 def serve_frontend():
@@ -197,5 +267,8 @@ def serve_static(path):
         return send_from_directory(os.path.join(os.path.dirname(__file__), '../frontend'), path)
     except:
         return jsonify({'erro': 'Arquivo não encontrado'}), 404
+
+# ============ MAIN ============
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
