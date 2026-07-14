@@ -12,10 +12,11 @@ load_dotenv()
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), '../frontend'), static_url_path='')
 CORS(app)
 
-app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'pam-controle-manutencao-chave-super-segura-2026-render-production-12345')
-
+# ============ CONFIGURAÇÃO ============
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql://user:password@localhost/pam_db')
+app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'pam-controle-manutencao-chave-super-segura-2026-render-production-12345')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=30)
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 jwt = JWTManager(app)
@@ -136,140 +137,192 @@ def login():
     data = request.get_json()
     email = data.get('email')
     senha = data.get('senha')
+    
     usuario = Usuario.query.filter_by(email=email).first()
+    
     if not usuario or not usuario.check_password(senha):
         return jsonify({'erro': 'Email ou senha inválidos'}), 401
+    
     if not usuario.ativo:
         return jsonify({'erro': 'Usuário inativo'}), 401
+    
     access_token = create_access_token(identity=usuario.id)
     return jsonify({'token': access_token, 'usuario': usuario.to_dict()}), 200
 
 @app.route('/api/equipamentos', methods=['GET'])
 @jwt_required()
 def listar_equipamentos():
-    equipamentos = Equipamento.query.filter_by(ativo=True).all()
-    return jsonify([eq.to_dict() for eq in equipamentos]), 200
+    try:
+        equipamentos = Equipamento.query.filter_by(ativo=True).all()
+        return jsonify([eq.to_dict() for eq in equipamentos]), 200
+    except Exception as e:
+        return jsonify({'erro': str(e)}), 500
 
 @app.route('/api/equipamentos', methods=['POST'])
 @jwt_required()
 def criar_equipamento():
-    usuario_id = get_jwt_identity()
-    data = request.get_json()
-    equipamento = Equipamento(
-        nome=data.get('nome'),
-        tipo=data.get('tipo'),
-        localizacao=data.get('localizacao'),
-        quantidade_estoque=data.get('quantidade_estoque', 1),
-        requer_calibracao=data.get('requer_calibracao', False),
-        frequencia_preventiva=data.get('frequencia_preventiva'),
-        criado_por=usuario_id
-    )
-    db.session.add(equipamento)
-    db.session.commit()
-    return jsonify(equipamento.to_dict()), 201
+    try:
+        usuario_id = get_jwt_identity()
+        data = request.get_json()
+        
+        equipamento = Equipamento(
+            nome=data.get('nome'),
+            tipo=data.get('tipo'),
+            localizacao=data.get('localizacao'),
+            quantidade_estoque=data.get('quantidade_estoque', 1),
+            requer_calibracao=data.get('requer_calibracao', False),
+            frequencia_preventiva=data.get('frequencia_preventiva'),
+            criado_por=usuario_id
+        )
+        
+        db.session.add(equipamento)
+        db.session.commit()
+        return jsonify(equipamento.to_dict()), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'erro': str(e)}), 500
 
 @app.route('/api/manutencoes', methods=['GET'])
 @jwt_required()
 def listar_manutencoes():
-    manutencoes = Manutencao.query.all()
-    return jsonify([m.to_dict() for m in manutencoes]), 200
+    try:
+        manutencoes = Manutencao.query.all()
+        return jsonify([m.to_dict() for m in manutencoes]), 200
+    except Exception as e:
+        return jsonify({'erro': str(e)}), 500
 
 @app.route('/api/manutencoes', methods=['POST'])
 @jwt_required()
 def criar_manutencao():
-    usuario_id = get_jwt_identity()
-    data = request.get_json()
-    manutencao = Manutencao(
-        equipamento_id=data.get('equipamento_id'),
-        data_manutencao=datetime.strptime(data.get('data_manutencao'), '%Y-%m-%d').date(),
-        tipo=data.get('tipo'),
-        tecnico=data.get('tecnico'),
-        empresa=data.get('empresa'),
-        custo=data.get('custo'),
-        pecas_substituidas=data.get('pecas_substituidas'),
-        proxima_data_prevista=datetime.strptime(data.get('proxima_data_prevista'), '%Y-%m-%d').date() if data.get('proxima_data_prevista') else None,
-        observacoes=data.get('observacoes'),
-        registrado_por=usuario_id
-    )
-    db.session.add(manutencao)
-    equipamento = Equipamento.query.get(data.get('equipamento_id'))
-    equipamento.proxima_manutencao = manutencao.proxima_data_prevista
-    db.session.commit()
-    return jsonify(manutencao.to_dict()), 201
+    try:
+        usuario_id = get_jwt_identity()
+        data = request.get_json()
+        
+        manutencao = Manutencao(
+            equipamento_id=data.get('equipamento_id'),
+            data_manutencao=datetime.strptime(data.get('data_manutencao'), '%Y-%m-%d').date(),
+            tipo=data.get('tipo'),
+            tecnico=data.get('tecnico'),
+            empresa=data.get('empresa'),
+            custo=data.get('custo'),
+            pecas_substituidas=data.get('pecas_substituidas'),
+            proxima_data_prevista=datetime.strptime(data.get('proxima_data_prevista'), '%Y-%m-%d').date() if data.get('proxima_data_prevista') else None,
+            observacoes=data.get('observacoes'),
+            registrado_por=usuario_id
+        )
+        
+        db.session.add(manutencao)
+        
+        equipamento = Equipamento.query.get(data.get('equipamento_id'))
+        if equipamento:
+            equipamento.proxima_manutencao = manutencao.proxima_data_prevista
+        
+        db.session.commit()
+        return jsonify(manutencao.to_dict()), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'erro': str(e)}), 500
 
 @app.route('/api/alertas', methods=['GET'])
 @jwt_required()
 def listar_alertas():
-    alertas = Alerta.query.filter_by(resolvido=False).all()
-    return jsonify([a.to_dict() for a in alertas]), 200
+    try:
+        alertas = Alerta.query.filter_by(resolvido=False).all()
+        return jsonify([a.to_dict() for a in alertas]), 200
+    except Exception as e:
+        return jsonify({'erro': str(e)}), 500
 
 @app.route('/api/alertas/gerar', methods=['POST'])
 @jwt_required()
 def gerar_alertas():
-    Alerta.query.delete()
-    db.session.commit()
-    hoje = datetime.now().date()
-    equipamentos = Equipamento.query.filter_by(ativo=True).all()
-    for eq in equipamentos:
-        if eq.proxima_manutencao and eq.proxima_manutencao < hoje:
-            dias_vencidos = (hoje - eq.proxima_manutencao).days
-            alerta = Alerta(
-                equipamento_id=eq.id,
-                tipo_alerta='manutencao_vencida',
-                descricao=f'Vencida há {dias_vencidos} dias'
-            )
-            db.session.add(alerta)
-        elif eq.proxima_manutencao and (eq.proxima_manutencao - hoje).days <= 7:
-            dias_ate = (eq.proxima_manutencao - hoje).days
-            alerta = Alerta(
-                equipamento_id=eq.id,
-                tipo_alerta='proxima_manutencao',
-                descricao=f'Vence em {dias_ate} dias'
-            )
-            db.session.add(alerta)
-        consumiveisRecompra = ['Máscara Laríngea', 'Bougie', 'Acesso Venoso Central', 'Dreno de Tórax']
-        if eq.quantidade_estoque == 1 and eq.nome in consumiveisRecompra:
-            alerta = Alerta(
-                equipamento_id=eq.id,
-                tipo_alerta='estoque_baixo',
-                descricao='Quantidade em estoque = 1. Recomprar!'
-            )
-            db.session.add(alerta)
-    db.session.commit()
-    alertas = Alerta.query.all()
-    return jsonify([a.to_dict() for a in alertas]), 200
+    try:
+        Alerta.query.delete()
+        db.session.commit()
+        
+        hoje = datetime.now().date()
+        equipamentos = Equipamento.query.filter_by(ativo=True).all()
+        
+        for eq in equipamentos:
+            if eq.proxima_manutencao and eq.proxima_manutencao < hoje:
+                dias_vencidos = (hoje - eq.proxima_manutencao).days
+                alerta = Alerta(
+                    equipamento_id=eq.id,
+                    tipo_alerta='manutencao_vencida',
+                    descricao=f'Vencida há {dias_vencidos} dias'
+                )
+                db.session.add(alerta)
+            elif eq.proxima_manutencao and (eq.proxima_manutencao - hoje).days <= 7:
+                dias_ate = (eq.proxima_manutencao - hoje).days
+                alerta = Alerta(
+                    equipamento_id=eq.id,
+                    tipo_alerta='proxima_manutencao',
+                    descricao=f'Vence em {dias_ate} dias'
+                )
+                db.session.add(alerta)
+            
+            consumiveisRecompra = ['Máscara Laríngea', 'Bougie', 'Acesso Venoso Central', 'Dreno de Tórax']
+            if eq.quantidade_estoque == 1 and eq.nome in consumiveisRecompra:
+                alerta = Alerta(
+                    equipamento_id=eq.id,
+                    tipo_alerta='estoque_baixo',
+                    descricao='Quantidade em estoque = 1. Recomprar!'
+                )
+                db.session.add(alerta)
+        
+        db.session.commit()
+        alertas = Alerta.query.all()
+        return jsonify([a.to_dict() for a in alertas]), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'erro': str(e)}), 500
 
 @app.route('/api/init-db', methods=['POST'])
 def init_db():
-    db.create_all()
-    if not Usuario.query.filter_by(email='coordenador@pam.com').first():
-        coordenador = Usuario(nome='Coordenador PAM', email='coordenador@pam.com', perfil='coordenador')
-        coordenador.set_password('senha123')
-        db.session.add(coordenador)
-    if not Usuario.query.filter_by(email='gerente@pam.com').first():
-        gerente = Usuario(nome='Gerente PAM', email='gerente@pam.com', perfil='gerente')
-        gerente.set_password('senha123')
-        db.session.add(gerente)
-    db.session.commit()
-    return jsonify({'mensagem': 'Banco de dados inicializado'}), 200
+    try:
+        db.create_all()
+        
+        if not Usuario.query.filter_by(email='coordenador@pam.com').first():
+            coordenador = Usuario(nome='Coordenador PAM', email='coordenador@pam.com', perfil='coordenador')
+            coordenador.set_password('senha123')
+            db.session.add(coordenador)
+        
+        if not Usuario.query.filter_by(email='gerente@pam.com').first():
+            gerente = Usuario(nome='Gerente PAM', email='gerente@pam.com', perfil='gerente')
+            gerente.set_password('senha123')
+            db.session.add(gerente)
+        
+        db.session.commit()
+        return jsonify({'mensagem': 'Banco de dados inicializado'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'erro': str(e)}), 500
 
 # ============ FRONTEND ROUTES ============
 
 @app.route('/')
-def serve_frontend():
+def serve_index():
     try:
-        return send_from_directory(os.path.join(os.path.dirname(__file__), '../frontend'), 'index.html')
+        return send_from_directory(app.static_folder, 'index.html')
     except:
         return jsonify({'mensagem': 'API de Controle de Manutenção PAM', 'status': 'online'}), 200
 
+@app.route('/css/<path:filename>')
+def serve_css(filename):
+    return send_from_directory(os.path.join(app.static_folder, 'css'), filename)
+
+@app.route('/js/<path:filename>')
+def serve_js(filename):
+    return send_from_directory(os.path.join(app.static_folder, 'js'), filename)
+
 @app.route('/<path:path>')
 def serve_static(path):
-    try:
-        return send_from_directory(os.path.join(os.path.dirname(__file__), '../frontend'), path)
-    except:
-        return jsonify({'erro': 'Arquivo não encontrado'}), 404
+    if os.path.isfile(os.path.join(app.static_folder, path)):
+        return send_from_directory(app.static_folder, path)
+    return send_from_directory(app.static_folder, 'index.html')
 
 # ============ MAIN ============
 
 if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
     app.run(debug=True, host='0.0.0.0', port=5000)
